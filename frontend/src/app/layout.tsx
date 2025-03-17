@@ -7,7 +7,7 @@ import Navbar from './components/Navbar';
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "スライド管理アプリ",
+  title: "Codebase Slide Share",
   description: "HTMLやSVG形式で記載されたコードベースのスライド情報を管理するWebアプリ",
 };
 
