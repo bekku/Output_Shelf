@@ -1,7 +1,7 @@
 from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select
 
 from app.domain.entities.user import User, UserId
 from app.domain.repositories.user_repository import UserRepository
@@ -35,15 +35,13 @@ class UserRepositoryImpl(UserRepository):
             )
             self.session.add(db_user)
 
-        await self.session.flush()
-        await self.session.refresh(db_user)
+        await self.session.commit()
+        # refreshが必要なときだけ実行する
+        if not db_user.email:
+            await self.session.refresh(db_user)
 
         # エンティティに変換して返す
-        return User(
-            id=UserId(value=db_user.email),
-            username=db_user.username,
-            hashed_password=db_user.hashed_password
-        )
+        return self._to_entity(db_user)
 
     async def find_by_id(self, user_id: UserId) -> Optional[User]:
         """IDによりユーザーを検索する"""
@@ -59,6 +57,10 @@ class UserRepositoryImpl(UserRepository):
             return None
 
         # エンティティに変換して返す
+        return self._to_entity(db_user)
+
+    def _to_entity(self, db_user: UserModel) -> User:
+        """DBモデルからエンティティに変換する"""
         return User(
             id=UserId(value=db_user.email),
             username=db_user.username,

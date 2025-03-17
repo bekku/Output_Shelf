@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select
 
 from app.domain.entities.slide import Slide, SlideId
 from app.domain.entities.user import UserId
@@ -28,20 +28,8 @@ class SlideRepositoryImpl(SlideRepository):
                 owner_username=slide.owner_username
             )
             self.session.add(db_slide)
-            await self.session.flush()
+            await self.session.commit()
             await self.session.refresh(db_slide)
-
-            # エンティティに変換して返す
-            return Slide(
-                id=SlideId(value=db_slide.id),
-                title=db_slide.title,
-                content=db_slide.content,
-                is_public=db_slide.is_public,
-                owner_email=db_slide.owner_email,
-                owner_username=db_slide.owner_username,
-                created_at=db_slide.created_at,
-                updated_at=db_slide.updated_at
-            )
         else:
             # 更新
             stmt = select(SlideModel).where(SlideModel.id == slide.id.value)
@@ -53,23 +41,13 @@ class SlideRepositoryImpl(SlideRepository):
                 db_slide.content = slide.content
                 db_slide.is_public = slide.is_public
                 db_slide.updated_at = datetime.utcnow()
-
-                await self.session.flush()
+                await self.session.commit()
                 await self.session.refresh(db_slide)
+            else:
+                return slide
 
-                # エンティティに変換して返す
-                return Slide(
-                    id=SlideId(value=db_slide.id),
-                    title=db_slide.title,
-                    content=db_slide.content,
-                    is_public=db_slide.is_public,
-                    owner_email=db_slide.owner_email,
-                    owner_username=db_slide.owner_username,
-                    created_at=db_slide.created_at,
-                    updated_at=db_slide.updated_at
-                )
-
-            return slide
+        # エンティティに変換して返す
+        return self._to_entity(db_slide)
 
     async def find_by_id(self, slide_id: SlideId) -> Optional[Slide]:
         """IDによりスライドを検索する"""
@@ -81,16 +59,7 @@ class SlideRepositoryImpl(SlideRepository):
             return None
 
         # エンティティに変換して返す
-        return Slide(
-            id=SlideId(value=db_slide.id),
-            title=db_slide.title,
-            content=db_slide.content,
-            is_public=db_slide.is_public,
-            owner_email=db_slide.owner_email,
-            owner_username=db_slide.owner_username,
-            created_at=db_slide.created_at,
-            updated_at=db_slide.updated_at
-        )
+        return self._to_entity(db_slide)
 
     async def find_by_owner(self, owner_id: UserId) -> List[Slide]:
         """所有者によりスライドを検索する"""
@@ -101,19 +70,7 @@ class SlideRepositoryImpl(SlideRepository):
         db_slides = result.scalars().all()
 
         # エンティティに変換して返す
-        return [
-            Slide(
-                id=SlideId(value=db_slide.id),
-                title=db_slide.title,
-                content=db_slide.content,
-                is_public=db_slide.is_public,
-                owner_email=db_slide.owner_email,
-                owner_username=db_slide.owner_username,
-                created_at=db_slide.created_at,
-                updated_at=db_slide.updated_at
-            )
-            for db_slide in db_slides
-        ]
+        return [self._to_entity(db_slide) for db_slide in db_slides]
 
     async def find_public(self) -> List[Slide]:
         """公開スライドを検索する"""
@@ -122,19 +79,7 @@ class SlideRepositoryImpl(SlideRepository):
         db_slides = result.scalars().all()
 
         # エンティティに変換して返す
-        return [
-            Slide(
-                id=SlideId(value=db_slide.id),
-                title=db_slide.title,
-                content=db_slide.content,
-                is_public=db_slide.is_public,
-                owner_email=db_slide.owner_email,
-                owner_username=db_slide.owner_username,
-                created_at=db_slide.created_at,
-                updated_at=db_slide.updated_at
-            )
-            for db_slide in db_slides
-        ]
+        return [self._to_entity(db_slide) for db_slide in db_slides]
 
     async def delete(self, slide_id: SlideId) -> bool:
         """スライドを削除する"""
@@ -146,6 +91,19 @@ class SlideRepositoryImpl(SlideRepository):
             return False
 
         await self.session.delete(db_slide)
-        await self.session.flush()
+        await self.session.commit()
 
         return True
+
+    def _to_entity(self, db_slide: SlideModel) -> Slide:
+        """DBモデルからエンティティに変換する"""
+        return Slide(
+            id=SlideId(value=db_slide.id),
+            title=db_slide.title,
+            content=db_slide.content,
+            is_public=db_slide.is_public,
+            owner_email=db_slide.owner_email,
+            owner_username=db_slide.owner_username,
+            created_at=db_slide.created_at,
+            updated_at=db_slide.updated_at
+        )
