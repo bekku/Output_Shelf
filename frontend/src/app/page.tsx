@@ -98,6 +98,37 @@ export default function Home() {
     }
   };
 
+  const handleDeleteSlide = async (slideId: number) => {
+    if (!confirm('このスライドを削除してもよろしいですか？')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/api/slides/${slideId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('スライドの削除に失敗しました');
+      }
+
+      // 成功したら、スライドリストから削除したスライドを除外
+      setSlides(slides.filter(slide => slide.id !== slideId));
+      setFilteredSlides(filteredSlides.filter(slide => slide.id !== slideId));
+
+      // プレビューからも削除
+      const newPreviews = { ...slidePreviews };
+      delete newPreviews[slideId];
+      setSlidePreviews(newPreviews);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   if (isLoading || loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -334,6 +365,12 @@ export default function Home() {
                 >
                   編集
                 </Link>
+                <button
+                  onClick={() => handleDeleteSlide(slide.id)}
+                  className="text-sm font-medium text-red-600 hover:text-red-500"
+                >
+                  削除
+                </button>
               </div>
             </div>
           ))}

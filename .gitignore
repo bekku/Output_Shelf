@@ -43,7 +43,7 @@ next-env.d.ts
 # backend
 .DS_Store
 __pycache__
-
+app.db
 
 # frontend
 frontend/node_modules
