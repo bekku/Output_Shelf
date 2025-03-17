@@ -39,13 +39,28 @@ class Slide:
     def title(self) -> str:
         return self._title
 
+    @title.setter
+    def title(self, value: str) -> None:
+        self._title = value
+        self._updated_at = datetime.utcnow()
+
     @property
     def content(self) -> str:
         return self._content
 
+    @content.setter
+    def content(self, value: str) -> None:
+        self._content = value
+        self._updated_at = datetime.utcnow()
+
     @property
     def is_public(self) -> bool:
         return self._is_public
+
+    @is_public.setter
+    def is_public(self, value: bool) -> None:
+        self._is_public = value
+        self._updated_at = datetime.utcnow()
 
     @property
     def owner_email(self) -> str:
@@ -63,12 +78,9 @@ class Slide:
     def updated_at(self) -> datetime:
         return self._updated_at
 
-    def update(self, title: str, content: str, is_public: bool) -> None:
-        """スライドの内容を更新する"""
-        self._title = title
-        self._content = content
-        self._is_public = is_public
-        self._updated_at = datetime.utcnow()
+    @updated_at.setter
+    def updated_at(self, value: datetime) -> None:
+        self._updated_at = value
 
     def to_dict(self) -> dict:
         """辞書形式に変換"""

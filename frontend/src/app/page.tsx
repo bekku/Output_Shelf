@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Pagination from './components/Pagination';
 
 interface Slide {
   id: number;
@@ -16,6 +18,8 @@ interface Slide {
 }
 
 export default function Home() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, isLoading } = useAuth();
   const [slides, setSlides] = useState<Slide[]>([]);
   const [filteredSlides, setFilteredSlides] = useState<Slide[]>([]);
@@ -23,6 +27,10 @@ export default function Home() {
   const [error, setError] = useState('');
   const [slidePreviews, setSlidePreviews] = useState<{ [key: number]: string }>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [totalPages, setTotalPages] = useState(1);
+
+  // URLからページ番号を取得
+  const currentPage = Number(searchParams.get('page')) || 1;
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -30,7 +38,7 @@ export default function Home() {
     } else if (!isLoading && !isAuthenticated) {
       setLoading(false);
     }
-  }, [isLoading, isAuthenticated]);
+  }, [isLoading, isAuthenticated, currentPage]);
 
   // 検索クエリが変更されたときにスライドをフィルタリング
   useEffect(() => {
@@ -71,23 +79,26 @@ export default function Home() {
   const fetchSlides = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/slides', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/slides?page=${currentPage}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error('スライドの取得に失敗しました');
       }
 
       const data = await response.json();
-      setSlides(data);
-      setFilteredSlides(data); // 初期状態では全てのスライドを表示
+      setSlides(data[0]);
+      setTotalPages(data[1]);
 
       // 各スライドの最初のページをプレビューとして抽出
       const previews: { [key: number]: string } = {};
-      data.forEach((slide: Slide) => {
+      data[0].forEach((slide: Slide) => {
         previews[slide.id] = splitContentIntoPages(slide.content);
       });
       setSlidePreviews(previews);
@@ -127,6 +138,13 @@ export default function Home() {
     } catch (err: any) {
       setError(err.message);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    // URLのクエリパラメータを更新
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', page.toString());
+    router.push(`?${params.toString()}`);
   };
 
   if (isLoading || loading) {
@@ -266,115 +284,122 @@ export default function Home() {
           <p className="mt-1 text-sm text-gray-500">検索条件を変更してみてください。</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredSlides.map((slide) => (
-            <div
-              key={slide.id}
-              className="bg-white overflow-hidden shadow rounded-lg border border-gray-200"
-            >
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <svg
-                      className="h-6 w-6 text-gray-400"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                      />
-                    </svg>
-                  </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <h3 className="text-lg font-medium text-gray-900 truncate">{slide.title}</h3>
-                    <div className="mt-1 flex items-center">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          slide.is_public
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
+        <>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredSlides.map((slide) => (
+              <div
+                key={slide.id}
+                className="bg-white overflow-hidden shadow rounded-lg border border-gray-200"
+              >
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-6 w-6 text-gray-400"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
                       >
-                        {slide.is_public ? '公開' : '非公開'}
-                      </span>
-                      <span className="ml-2 text-sm text-gray-500">
-                        {new Date(slide.updated_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      作成者: {slide.owner_username || slide.owner_email.split('@')[0]}
-                    </div>
-                  </div>
-                </div>
-                {/* スライドプレビュー表示エリア */}
-                <div className="mt-4 border rounded-md p-2 overflow-hidden" style={{ height: '180px' }}>
-                  <div className="prose prose-sm max-w-none overflow-hidden flex items-center justify-center h-full">
-                    <div
-                      style={{
-                        transform: 'scale(0.4)',
-                        transformOrigin: 'center',
-                        width: '250%',
-                        height: '250%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      {slidePreviews[slide.id]?.trim().startsWith('<svg') ? (
-                        // SVGコンテンツの場合
-                        <div
-                          className="svg-container"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                          dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                         />
-                      ) : (
-                        // 通常のHTMLコンテンツの場合
-                        <div dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }} />
-                      )}
+                      </svg>
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <h3 className="text-lg font-medium text-gray-900 truncate">{slide.title}</h3>
+                      <div className="mt-1 flex items-center">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            slide.is_public
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
+                          {slide.is_public ? '公開' : '非公開'}
+                        </span>
+                        <span className="ml-2 text-sm text-gray-500">
+                          {new Date(slide.updated_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        作成者: {slide.owner_username || slide.owner_email.split('@')[0]}
+                      </div>
+                    </div>
+                  </div>
+                  {/* スライドプレビュー表示エリア */}
+                  <div className="mt-4 border rounded-md p-2 overflow-hidden" style={{ height: '180px' }}>
+                    <div className="prose prose-sm max-w-none overflow-hidden flex items-center justify-center h-full">
+                      <div
+                        style={{
+                          transform: 'scale(0.4)',
+                          transformOrigin: 'center',
+                          width: '250%',
+                          height: '250%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {slidePreviews[slide.id]?.trim().startsWith('<svg') ? (
+                          // SVGコンテンツの場合
+                          <div
+                            className="svg-container"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
+                          />
+                        ) : (
+                          // 通常のHTMLコンテンツの場合
+                          <div dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }} />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
+                <div className="bg-gray-50 px-5 py-3 flex justify-between">
+                  <Link
+                    href={`/slides/${slide.id}`}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                  >
+                    表示
+                  </Link>
+                  <Link
+                    href={`/slides/${slide.id}?slideshow=true`}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                  >
+                    スライドショー
+                  </Link>
+                  <Link
+                    href={`/slides/${slide.id}/edit`}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                  >
+                    編集
+                  </Link>
+                  <button
+                    onClick={() => handleDeleteSlide(slide.id)}
+                    className="text-sm font-medium text-red-600 hover:text-red-500"
+                  >
+                    削除
+                  </button>
+                </div>
               </div>
-              <div className="bg-gray-50 px-5 py-3 flex justify-between">
-                <Link
-                  href={`/slides/${slide.id}`}
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                  表示
-                </Link>
-                <Link
-                  href={`/slides/${slide.id}?slideshow=true`}
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                  スライドショー
-                </Link>
-                <Link
-                  href={`/slides/${slide.id}/edit`}
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                  編集
-                </Link>
-                <button
-                  onClick={() => handleDeleteSlide(slide.id)}
-                  className="text-sm font-medium text-red-600 hover:text-red-500"
-                >
-                  削除
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </>
       )}
     </div>
   );

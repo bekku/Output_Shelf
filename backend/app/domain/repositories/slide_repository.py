@@ -51,12 +51,16 @@ class SlideRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_public(self) -> List[Slide]:
+    async def find_public(self, page: int = 1, per_page: int = 18) -> tuple[List[Slide], int]:
         """
-        公開スライドを検索する
+        公開スライドを検索する（ページネーション付き）
+
+        Args:
+            page: ページ番号（1から開始）
+            per_page: 1ページあたりの表示数
 
         Returns:
-            公開されているスライドエンティティのリスト
+            tuple[List[Slide], int]: (スライドのリスト, 総ページ数)
         """
         pass
 

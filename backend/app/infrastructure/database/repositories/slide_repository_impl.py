@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.domain.entities.slide import Slide, SlideId
 from app.domain.entities.user import UserId
@@ -72,14 +72,28 @@ class SlideRepositoryImpl(SlideRepository):
         # エンティティに変換して返す
         return [self._to_entity(db_slide) for db_slide in db_slides]
 
-    async def find_public(self) -> List[Slide]:
-        """公開スライドを検索する"""
-        stmt = select(SlideModel).where(SlideModel.is_public.is_(True))
-        result = await self.session.execute(stmt)
-        db_slides = result.scalars().all()
+    async def find_public(
+        self, page: int = 1, per_page: int = 18
+    ) -> Tuple[List[Slide], int]:
+        """公開スライドを検索する（ページネーション付き）"""
+        # 総件数を取得
+        count_query = select(func.count()).select_from(SlideModel).where(
+            SlideModel.is_public == True
+        )
+        total_count = await self.session.scalar(count_query)
+        total_pages = (total_count + per_page - 1) // per_page
 
-        # エンティティに変換して返す
-        return [self._to_entity(db_slide) for db_slide in db_slides]
+        # ページネーション付きでスライドを取得
+        query = (
+            select(SlideModel)
+            .where(SlideModel.is_public == True)
+            .order_by(SlideModel.updated_at.desc())
+            .offset((page - 1) * per_page)
+            .limit(per_page)
+        )
+        result = await self.session.execute(query)
+        db_slides = result.scalars().all()
+        return [self._to_entity(db_slide) for db_slide in db_slides], total_pages
 
     async def delete(self, slide_id: SlideId) -> bool:
         """スライドを削除する"""
