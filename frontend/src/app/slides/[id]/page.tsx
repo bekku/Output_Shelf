@@ -203,29 +203,6 @@ export default function SlideDetail() {
           <h2 className="text-xl font-bold truncate max-w-md">{slide.title}</h2>
           <div className="flex items-center space-x-4">
             <button
-              onClick={prevPage}
-              disabled={currentPage === 0}
-              className={`px-3 py-1 rounded ${
-                currentPage === 0
-                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-700 text-white hover:bg-gray-600'
-              }`}
-            >
-              前へ
-            </button>
-            <span>{currentPage + 1} / {pages.length}</span>
-            <button
-              onClick={nextPage}
-              disabled={currentPage === pages.length - 1}
-              className={`px-3 py-1 rounded ${
-                currentPage === pages.length - 1
-                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-700 text-white hover:bg-gray-600'
-              }`}
-            >
-              次へ
-            </button>
-            <button
               onClick={exitSlideshow}
               className="ml-4 bg-red-600 text-white px-4 py-1 rounded hover:bg-red-700"
             >
@@ -305,31 +282,6 @@ export default function SlideDetail() {
               className="px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700"
             >
               スライドショー
-            </button>
-            <span className="text-sm text-gray-500">
-              {pages.length > 0 ? `${currentPage + 1} / ${pages.length}` : '0 / 0'}
-            </span>
-            <button
-              onClick={prevPage}
-              disabled={currentPage === 0}
-              className={`px-2 py-1 rounded ${
-                currentPage === 0
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-              }`}
-            >
-              前へ
-            </button>
-            <button
-              onClick={nextPage}
-              disabled={currentPage === pages.length - 1}
-              className={`px-2 py-1 rounded ${
-                currentPage === pages.length - 1
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
-              }`}
-            >
-              次へ
             </button>
           </div>
         </div>
