@@ -1,10 +1,18 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from typing import AsyncGenerator
+import os
+from dotenv import load_dotenv
+
+# 環境変数の読み込み
+load_dotenv()
 
 # 非同期のPostgreSQLデータベース接続
-# docker-compose.ymlの設定に合わせる
-DATABASE_URL = "postgresql+asyncpg://postgres:postgres@db:5432/slidedb"
+# 環境変数から接続情報を取得
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@db:5432/slidedb"
+)
 engine = create_async_engine(
     DATABASE_URL,
     echo=True,  # SQLログを出力

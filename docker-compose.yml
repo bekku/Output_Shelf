@@ -24,9 +24,11 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./backend/.env:/app/.env
+    env_file:
+      - ./backend/.env
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/slidedb
     depends_on:
       - db
 

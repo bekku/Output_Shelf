@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import JWTError, jwt
+import os
+from dotenv import load_dotenv
 
 from app.application.interfaces.user_dto import (
     UserCreateDTO, UserResponseDTO, TokenDTO
@@ -14,11 +16,16 @@ from app.infrastructure.database.database import get_db_session
 
 router = APIRouter()
 
+# 環境変数の読み込み
+load_dotenv()
+
 # セキュリティ設定
-SECRET_KEY = ("09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-              )  # 本番環境では環境変数から取得
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+# デフォルト値として30分を設定
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv(
+    "ACCESS_TOKEN_EXPIRE_MINUTES", "30"
+))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
