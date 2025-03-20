@@ -27,7 +27,7 @@ export default function SlideDetail() {
   const [isSlideshow, setIsSlideshow] = useState(false);
   const params = useParams();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const slideId = params.id;
   const [isLiked, setIsLiked] = useState(false);
 
@@ -194,6 +194,11 @@ export default function SlideDetail() {
     }
   };
 
+  // スライドの所有者かどうかを判定する関数
+  const isOwner = () => {
+    return slide && user && slide.owner_id === user.id;
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -294,7 +299,7 @@ export default function SlideDetail() {
           <Link href="/" className="text-indigo-600 hover:text-indigo-500">
             ホームに戻る
           </Link>
-          {isAuthenticated && (
+          {isOwner() && (
             <Link
               href={`/slides/${slide.id}/edit`}
               className="text-indigo-600 hover:text-indigo-500"
@@ -302,6 +307,29 @@ export default function SlideDetail() {
               編集
             </Link>
           )}
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t pt-4">
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center text-gray-500">
+            <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+            </svg>
+            <span>{slide?.views || 0} 回視聴</span>
+          </div>
+          <button
+            onClick={handleLike}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md ${
+              isLiked ? 'bg-pink-500 text-white' : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+            </svg>
+            <span>{slide?.likes || 0}</span>
+          </button>
         </div>
       </div>
 
@@ -338,27 +366,17 @@ export default function SlideDetail() {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t pt-4">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center text-gray-500">
-            <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-            </svg>
-            <span>{slide?.views || 0} 回視聴</span>
-          </div>
-          <button
-            onClick={handleLike}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md ${
-              isLiked ? 'bg-pink-500 text-white' : 'bg-gray-100 text-gray-500'
-            }`}
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-            </svg>
-            <span>{slide?.likes || 0}</span>
-          </button>
-        </div>
+      {/* スライド作成者情報 */}
+      <div className="mt-4 text-sm text-gray-500">
+        作成者: {slide?.owner_username}
+        <span className="mx-2">•</span>
+        作成日: {slide && new Date(slide.created_at).toLocaleDateString()}
+        {slide?.updated_at !== slide?.created_at && (
+          <>
+            <span className="mx-2">•</span>
+            更新日: {new Date(slide?.updated_at).toLocaleDateString()}
+          </>
+        )}
       </div>
     </div>
   );

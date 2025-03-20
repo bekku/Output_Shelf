@@ -22,8 +22,8 @@ load_dotenv()
 # セキュリティ設定
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-# デフォルト値として30分を設定
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+# デフォルト値として1日を設定
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60*24"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 

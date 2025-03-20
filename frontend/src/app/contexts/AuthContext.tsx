@@ -5,16 +5,17 @@ import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 
 interface User {
-  email: string;
+  id: number;
   username: string;
+  email: string;
 }
 
 interface AuthContextType {
-  user: User | null;
+  isAuthenticated: boolean;
   isLoading: boolean;
+  user: User | null;
   login: (token: string) => Promise<void>;
   logout: () => void;
-  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
