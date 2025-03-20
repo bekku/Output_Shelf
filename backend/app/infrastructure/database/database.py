@@ -13,16 +13,9 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+asyncpg://postgres:postgres@db:5432/slidedb"
 )
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=True,  # SQLログを出力
-)
-
+engine = create_async_engine(DATABASE_URL, echo=False)
 # 非同期セッションを作成
-SessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
-
+SessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 # model作成用の基底クラス
 Base = declarative_base()
 

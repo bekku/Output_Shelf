@@ -4,8 +4,7 @@ from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from app.domain.entities.slide import Slide, SlideId
-from app.domain.entities.user import UserId
+from app.domain.entities.slide import Slide
 from app.domain.repositories.slide_repository import SlideRepository
 from app.infrastructure.database.models import SlideModel
 
@@ -22,9 +21,10 @@ class SlideRepositoryImpl(SlideRepository):
             # 新規作成
             db_slide = SlideModel(
                 title=slide.title,
+                id=slide.id,
                 content=slide.content,
                 is_public=slide.is_public,
-                owner_email=slide.owner_email,
+                owner_id=slide.owner_id,
                 owner_username=slide.owner_username
             )
             self.session.add(db_slide)
@@ -32,7 +32,7 @@ class SlideRepositoryImpl(SlideRepository):
             await self.session.refresh(db_slide)
         else:
             # 更新
-            stmt = select(SlideModel).where(SlideModel.id == slide.id.value)
+            stmt = select(SlideModel).where(SlideModel.id == slide.id)
             result = await self.session.execute(stmt)
             db_slide = result.scalars().first()
 
@@ -49,9 +49,9 @@ class SlideRepositoryImpl(SlideRepository):
         # エンティティに変換して返す
         return self._to_entity(db_slide)
 
-    async def find_by_id(self, slide_id: SlideId) -> Optional[Slide]:
+    async def find_by_id(self, slide_id: int) -> Optional[Slide]:
         """IDによりスライドを検索する"""
-        stmt = select(SlideModel).where(SlideModel.id == slide_id.value)
+        stmt = select(SlideModel).where(SlideModel.id == slide_id)
         result = await self.session.execute(stmt)
         db_slide = result.scalars().first()
 
@@ -61,11 +61,9 @@ class SlideRepositoryImpl(SlideRepository):
         # エンティティに変換して返す
         return self._to_entity(db_slide)
 
-    async def find_by_owner(self, owner_id: UserId) -> List[Slide]:
+    async def find_by_owner(self, owner_id: int) -> List[Slide]:
         """所有者によりスライドを検索する"""
-        stmt = select(SlideModel).where(
-            SlideModel.owner_email == owner_id.value
-        )
+        stmt = select(SlideModel).where(SlideModel.owner_id == owner_id)
         result = await self.session.execute(stmt)
         db_slides = result.scalars().all()
 
@@ -95,9 +93,9 @@ class SlideRepositoryImpl(SlideRepository):
         db_slides = result.scalars().all()
         return [self._to_entity(db_slide) for db_slide in db_slides], total_pages
 
-    async def delete(self, slide_id: SlideId) -> bool:
+    async def delete(self, slide_id: int) -> bool:
         """スライドを削除する"""
-        stmt = select(SlideModel).where(SlideModel.id == slide_id.value)
+        stmt = select(SlideModel).where(SlideModel.id == slide_id)
         result = await self.session.execute(stmt)
         db_slide = result.scalars().first()
 
@@ -112,11 +110,11 @@ class SlideRepositoryImpl(SlideRepository):
     def _to_entity(self, db_slide: SlideModel) -> Slide:
         """DBモデルからエンティティに変換する"""
         return Slide(
-            id=SlideId(value=db_slide.id),
+            id=db_slide.id,
             title=db_slide.title,
             content=db_slide.content,
             is_public=db_slide.is_public,
-            owner_email=db_slide.owner_email,
+            owner_id=db_slide.owner_id,
             owner_username=db_slide.owner_username,
             created_at=db_slide.created_at,
             updated_at=db_slide.updated_at

@@ -10,7 +10,7 @@ interface Slide {
   title: string;
   content: string;
   is_public: boolean;
-  owner_email: string;
+  owner_id: string;
   owner_username: string;
   created_at: string;
   updated_at: string;
@@ -61,14 +61,6 @@ export default function EditSlide() {
       }
 
       const data: Slide = await response.json();
-
-      // スライドが自分のものでない場合は編集不可
-      const userEmail = localStorage.getItem('user_email');
-      if (data.owner_email !== userEmail) {
-        setError('このスライドを編集する権限がありません');
-        setFetchLoading(false);
-        return;
-      }
 
       setTitle(data.title);
       setContent(data.content);

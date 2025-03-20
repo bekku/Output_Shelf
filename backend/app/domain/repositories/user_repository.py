@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from app.domain.entities.user import User, UserId
+from app.domain.entities.user import User
 
 
 class UserRepository(ABC):
@@ -23,7 +23,7 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def find_by_id(self, user_id: UserId) -> Optional[User]:
+    async def find_by_id(self, user_id: str) -> Optional[User]:
         """
         IDによりユーザーを検索する
 

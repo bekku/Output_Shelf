@@ -1,14 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional, Tuple
 
-from app.application.interfaces.slide_dto import (
-    SlideCreateDTO, SlideResponseDTO, SlideUpdateDTO
-)
+from app.application.interfaces.slide_dto import (SlideCreateDTO, SlideResponseDTO, SlideUpdateDTO)
 from app.application.use_cases.slide_use_cases import SlideUseCases
 from app.domain.repositories.slide_repository import SlideRepository
-from app.infrastructure.database.repositories.slide_repository_impl import (
-    SlideRepositoryImpl
-)
+from app.infrastructure.database.repositories.slide_repository_impl import (SlideRepositoryImpl)
 from app.infrastructure.database.database import get_db_session
 from app.api.routes.auth import get_current_user
 
@@ -40,7 +36,7 @@ async def get_slide(
     slide_use_cases: SlideUseCases = Depends(get_slide_use_cases)
 ):
     """スライドを取得する"""
-    slide = await slide_use_cases.get_slide(slide_id)
+    slide = await slide_use_cases.get_slide(int(slide_id))
     if not slide:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -57,7 +53,7 @@ async def get_user_slides(
 ):
     """ユーザーのスライドを取得する（ページネーション付き）"""
     return await slide_use_cases.get_user_slides(
-        owner_email=current_user.email,
+        owner_id=current_user.id,
         page=page,
         per_page=per_page
     )
@@ -79,18 +75,19 @@ async def update_slide(
     slide_use_cases: SlideUseCases = Depends(get_slide_use_cases)
 ):
     """スライドを更新する"""
-    slide = await slide_use_cases.get_slide(slide_id)
+    slide = await slide_use_cases.get_slide(int(slide_id))
     if not slide:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Slide not found"
         )
-    if slide.owner_email != current_user.email:
+    print(int(slide.owner_id), int(current_user.id))
+    if int(slide.owner_id) != int(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
         )
-    updated_slide = await slide_use_cases.update_slide(slide_id, slide_data)
+    updated_slide = await slide_use_cases.update_slide(int(slide_id), slide_data)
     return updated_slide
 
 @router.delete("/slides/{slide_id}")
@@ -100,18 +97,18 @@ async def delete_slide(
     slide_use_cases: SlideUseCases = Depends(get_slide_use_cases)
 ):
     """スライドを削除する"""
-    slide = await slide_use_cases.get_slide(slide_id)
+    slide = await slide_use_cases.get_slide(int(slide_id))
     if not slide:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Slide not found"
         )
-    if slide.owner_email != current_user.email:
+    if slide.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
         )
-    success = await slide_use_cases.delete_slide(slide_id)
+    success = await slide_use_cases.delete_slide(int(slide_id))
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

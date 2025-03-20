@@ -2,22 +2,16 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
 
-
-class SlideId(BaseModel):
-    """スライドIDの値オブジェクト"""
-    value: int
-
-
 class Slide:
     """スライドのエンティティ"""
 
     def __init__(
         self,
-        id: Optional[SlideId] = None,
+        id: id = None,
         title: str = "",
         content: str = "",
         is_public: bool = True,
-        owner_email: str = "",
+        owner_id: int = 0,
         owner_username: str = "",
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None
@@ -26,13 +20,13 @@ class Slide:
         self._title = title
         self._content = content
         self._is_public = is_public
-        self._owner_email = owner_email
+        self._owner_id = owner_id
         self._owner_username = owner_username
         self._created_at = created_at or datetime.utcnow()
         self._updated_at = updated_at or datetime.utcnow()
 
     @property
-    def id(self) -> Optional[SlideId]:
+    def id(self) -> int:
         return self._id
 
     @property
@@ -63,8 +57,8 @@ class Slide:
         self._updated_at = datetime.utcnow()
 
     @property
-    def owner_email(self) -> str:
-        return self._owner_email
+    def owner_id(self) -> int:
+        return self._owner_id
 
     @property
     def owner_username(self) -> str:
@@ -89,7 +83,7 @@ class Slide:
             "title": self._title,
             "content": self._content,
             "is_public": self._is_public,
-            "owner_email": self._owner_email,
+            "owner_id": self._owner_id,
             "owner_username": self._owner_username,
             "created_at": self._created_at,
             "updated_at": self._updated_at
@@ -98,15 +92,13 @@ class Slide:
     @classmethod
     def from_dict(cls, data: dict) -> "Slide":
         """辞書からインスタンスを生成"""
-        id_value = data.get("id")
-        id_obj = SlideId(value=id_value) if id_value is not None else None
 
         return cls(
-            id=id_obj,
+            id=data.get("id", None),
             title=data.get("title", ""),
             content=data.get("content", ""),
             is_public=data.get("is_public", True),
-            owner_email=data.get("owner_email", ""),
+            owner_id=data.get("owner_id", 0),
             owner_username=data.get("owner_username", ""),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at")

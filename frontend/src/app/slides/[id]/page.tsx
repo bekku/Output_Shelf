@@ -10,7 +10,7 @@ interface Slide {
   title: string;
   content: string;
   is_public: boolean;
-  owner_email: string;
+  owner_id: string;
   owner_username: string;
   created_at: string;
   updated_at: string;
@@ -251,7 +251,7 @@ export default function SlideDetail() {
           <Link href="/" className="text-indigo-600 hover:text-indigo-500">
             ホームに戻る
           </Link>
-          {isAuthenticated && slide?.owner_email === localStorage.getItem('user_email') && (
+          {isAuthenticated && (
             <Link
               href={`/slides/${slide.id}/edit`}
               className="text-indigo-600 hover:text-indigo-500"

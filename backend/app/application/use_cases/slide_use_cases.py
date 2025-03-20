@@ -1,13 +1,8 @@
 from typing import List, Optional, Tuple
 from datetime import datetime
 
-from app.application.interfaces.slide_dto import (
-    SlideCreateDTO,
-    SlideResponseDTO,
-    SlideUpdateDTO
-)
-from app.domain.entities.slide import Slide, SlideId
-from app.domain.entities.user import UserId
+from app.application.interfaces.slide_dto import (SlideCreateDTO,SlideResponseDTO,SlideUpdateDTO)
+from app.domain.entities.slide import Slide
 from app.domain.repositories.slide_repository import SlideRepository
 
 
@@ -35,7 +30,7 @@ class SlideUseCases:
             title=slide_data.title,
             content=slide_data.content,
             is_public=slide_data.is_public,
-            owner_email=current_user.email,
+            owner_id=current_user.id,
             owner_username=current_user.username,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
@@ -49,14 +44,13 @@ class SlideUseCases:
 
     async def get_slide(self, slide_id: str) -> Optional[SlideResponseDTO]:
         """スライドを取得する"""
-        slide = await self.slide_repository.find_by_id(SlideId(value=slide_id))
+        slide = await self.slide_repository.find_by_id(slide_id)
         return self._to_dto(slide) if slide else None
 
     async def get_user_slides(
-        self, owner_email: str, page: int = 1, per_page: int = 18
+        self, owner_id: str, page: int = 1, per_page: int = 18
     ) -> Tuple[List[SlideResponseDTO], int]:
         """ユーザーのスライドを取得する（ページネーション付き）"""
-        owner_id = UserId(value=owner_email)
         slides = await self.slide_repository.find_by_owner(owner_id)
 
         # ページネーション処理
@@ -95,14 +89,14 @@ class SlideUseCases:
             スライドDTO（存在しない場合またはアクセス権がない場合はNone）
         """
         # リポジトリを使用してスライドを取得
-        slide = await self.slide_repository.find_by_id(SlideId(value=slide_id))
+        slide = await self.slide_repository.find_by_id(slide_id)
 
         if not slide:
             return None
 
         # 非公開スライドは所有者のみアクセス可能
         if not slide.is_public and (
-            not current_user or slide.owner_email != current_user.email
+            not current_user or slide.owner_id != current_user.id
         ):
             return None
 
@@ -110,10 +104,10 @@ class SlideUseCases:
         return self._to_dto(slide)
 
     async def update_slide(
-        self, slide_id: str, slide_data: SlideUpdateDTO
+        self, slide_id: int, slide_data: SlideUpdateDTO
     ) -> Optional[SlideResponseDTO]:
         """スライドを更新する"""
-        slide = await self.slide_repository.find_by_id(SlideId(value=slide_id))
+        slide = await self.slide_repository.find_by_id(slide_id)
         if not slide:
             return None
 
@@ -125,9 +119,9 @@ class SlideUseCases:
         updated_slide = await self.slide_repository.save(slide)
         return self._to_dto(updated_slide)
 
-    async def delete_slide(self, slide_id: str) -> bool:
+    async def delete_slide(self, slide_id: int) -> bool:
         """スライドを削除する"""
-        return await self.slide_repository.delete(SlideId(value=slide_id))
+        return await self.slide_repository.delete(slide_id)
 
     def _to_dto(self, slide: Slide) -> SlideResponseDTO:
         """
@@ -140,11 +134,11 @@ class SlideUseCases:
             スライドDTO
         """
         return SlideResponseDTO(
-            id=slide.id.value,
+            id=slide.id,
             title=slide.title,
             content=slide.content,
             is_public=slide.is_public,
-            owner_email=slide.owner_email,
+            owner_id=slide.owner_id,
             owner_username=slide.owner_username,
             created_at=slide.created_at,
             updated_at=slide.updated_at

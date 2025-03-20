@@ -20,5 +20,6 @@ class UserCreateDTO(UserBaseDTO):
 
 class UserResponseDTO(UserBaseDTO):
     """ユーザー応答DTO"""
+    id: int
     class Config:
-        orm_mode = True
+        from_attributes = True

@@ -23,9 +23,7 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 # デフォルト値として30分を設定
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv(
-    "ACCESS_TOKEN_EXPIRE_MINUTES", "30"
-))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
 
@@ -100,7 +98,6 @@ async def register_user(
     """ユーザー登録"""
     # ユースケースを使用してユーザーを登録
     user = await auth_use_cases.register_user(user_data)
-
     if not user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

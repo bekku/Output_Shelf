@@ -10,7 +10,7 @@ interface Slide {
   title: string;
   content: string;
   is_public: boolean;
-  owner_email: string;
+  owner_id: string;
   owner_username: string;
   created_at: string;
   updated_at: string;
@@ -166,7 +166,7 @@ export default function PublicSlides() {
                         </span>
                       </div>
                       <div className="mt-1 text-xs text-gray-500">
-                        作成者: {slide.owner_username || slide.owner_email.split('@')[0]}
+                        作成者: {slide.owner_username}
                       </div>
                     </div>
                   </div>

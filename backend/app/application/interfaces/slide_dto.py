@@ -22,10 +22,13 @@ class SlideUpdateDTO(SlideBaseDTO):
 class SlideResponseDTO(SlideBaseDTO):
     """スライド応答DTO"""
     id: int
-    owner_email: str
+    title: str
+    content: str
+    owner_id: int
     owner_username: str
     created_at: datetime
     updated_at: datetime
+    is_public: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
