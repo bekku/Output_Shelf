@@ -48,6 +48,7 @@ async def get_slide(
 async def get_user_slides(
     page: int = Query(1, ge=1, description="ページ番号"),
     per_page: int = Query(18, ge=1, le=100, description="1ページあたりの表示数"),
+    sort_by: str = Query("created_at", description="ソート基準 (created_at, likes, views)"),
     current_user = Depends(get_current_user),
     slide_use_cases: SlideUseCases = Depends(get_slide_use_cases)
 ):
@@ -55,17 +56,23 @@ async def get_user_slides(
     return await slide_use_cases.get_user_slides(
         owner_id=current_user.id,
         page=page,
-        per_page=per_page
+        per_page=per_page,
+        sort_by=sort_by
     )
 
 @router.get("/public-slides", response_model=Tuple[List[SlideResponseDTO], int])
 async def get_public_slides(
     page: int = Query(1, ge=1, description="ページ番号"),
     per_page: int = Query(18, ge=1, le=100, description="1ページあたりの表示数"),
+    sort_by: str = Query("created_at", description="ソート基準 (created_at, likes, views)"),
     slide_use_cases: SlideUseCases = Depends(get_slide_use_cases)
 ):
     """公開スライドを取得する（ページネーション付き）"""
-    return await slide_use_cases.get_public_slides(page=page, per_page=per_page)
+    return await slide_use_cases.get_public_slides(
+        page=page,
+        per_page=per_page,
+        sort_by=sort_by
+    )
 
 @router.put("/slides/{slide_id}", response_model=SlideResponseDTO)
 async def update_slide(
@@ -115,3 +122,22 @@ async def delete_slide(
             detail="Failed to delete slide"
         )
     return {"message": "Slide deleted successfully"}
+
+@router.post("/slides/{slide_id}/like")
+async def like_slide(
+    slide_id: int,
+    current_user = Depends(get_current_user),
+    slide_use_cases: SlideUseCases = Depends(get_slide_use_cases)
+):
+    """スライドにいいねを付ける/解除する"""
+    result = await slide_use_cases.toggle_like(slide_id, current_user.id)
+    return {"liked": result}
+
+@router.post("/slides/{slide_id}/view")
+async def increment_view(
+    slide_id: int,
+    slide_use_cases: SlideUseCases = Depends(get_slide_use_cases)
+):
+    """スライドの閲覧数をインクリメントする"""
+    await slide_use_cases.increment_view(slide_id)
+    return {"message": "View count incremented"}

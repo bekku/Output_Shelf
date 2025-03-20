@@ -13,6 +13,8 @@ class Slide:
         is_public: bool = True,
         owner_id: int = 0,
         owner_username: str = "",
+        likes: int = 0,
+        views: int = 0,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None
     ):
@@ -22,6 +24,8 @@ class Slide:
         self._is_public = is_public
         self._owner_id = owner_id
         self._owner_username = owner_username
+        self._likes = likes
+        self._views = views
         self._created_at = created_at or datetime.utcnow()
         self._updated_at = updated_at or datetime.utcnow()
 
@@ -50,6 +54,14 @@ class Slide:
     @property
     def is_public(self) -> bool:
         return self._is_public
+
+    @property
+    def likes(self) -> int:
+        return self._likes
+
+    @property
+    def views(self) -> int:
+        return self._views
 
     @is_public.setter
     def is_public(self, value: bool) -> None:
@@ -85,6 +97,8 @@ class Slide:
             "is_public": self._is_public,
             "owner_id": self._owner_id,
             "owner_username": self._owner_username,
+            "likes": self._likes,
+            "views": self._views,
             "created_at": self._created_at,
             "updated_at": self._updated_at
         }
@@ -100,6 +114,8 @@ class Slide:
             is_public=data.get("is_public", True),
             owner_id=data.get("owner_id", 0),
             owner_username=data.get("owner_username", ""),
+            likes=data.get("likes", 0),
+            views=data.get("views", 0),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at")
         )

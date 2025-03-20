@@ -14,6 +14,8 @@ interface Slide {
   owner_username: string;
   created_at: string;
   updated_at: string;
+  likes: number;
+  views: number;
 }
 
 export default function SlideDetail() {
@@ -27,6 +29,7 @@ export default function SlideDetail() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const slideId = params.id;
+  const [isLiked, setIsLiked] = useState(false);
 
   useEffect(() => {
     if (slideId) {
@@ -130,6 +133,18 @@ export default function SlideDetail() {
       setPages(pageContents);
       // 最初のページを表示
       setCurrentPage(0);
+
+      // 表示時にビューカウントをインクリメント
+      const incrementView = async () => {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/slides/${slideId}/view`, {
+            method: 'POST',
+          });
+        } catch (error) {
+          console.error('Failed to increment view count:', error);
+        }
+      };
+      incrementView();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -148,6 +163,34 @@ export default function SlideDetail() {
   const prevPage = () => {
     if (currentPage > 0) {
       setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleLike = async () => {
+    if (!isAuthenticated) {
+      alert('いいねするにはログインが必要です。');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/slides/${slideId}/like`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const data = await response.json();
+      setIsLiked(data.liked);
+      setSlide(prev => prev ? {
+        ...prev,
+        likes: data.liked ? prev.likes + 1 : prev.likes - 1
+      } : null);
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
     }
   };
 
@@ -292,6 +335,29 @@ export default function SlideDetail() {
               dangerouslySetInnerHTML={{ __html: pages[currentPage] || '' }}
             />
           </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t pt-4">
+        <div className="flex items-center space-x-6">
+          <div className="flex items-center text-gray-500">
+            <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+            </svg>
+            <span>{slide?.views || 0} 回視聴</span>
+          </div>
+          <button
+            onClick={handleLike}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md ${
+              isLiked ? 'bg-pink-500 text-white' : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+            </svg>
+            <span>{slide?.likes || 0}</span>
+          </button>
         </div>
       </div>
     </div>

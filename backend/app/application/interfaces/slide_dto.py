@@ -11,6 +11,8 @@ class SlideBaseDTO(BaseModel):
 
 class SlideCreateDTO(SlideBaseDTO):
     """スライド作成DTO"""
+    likes: int = 0
+    views: int = 0
     pass
 
 
@@ -26,6 +28,8 @@ class SlideResponseDTO(SlideBaseDTO):
     content: str
     owner_id: int
     owner_username: str
+    likes: int
+    views: int
     created_at: datetime
     updated_at: datetime
     is_public: bool

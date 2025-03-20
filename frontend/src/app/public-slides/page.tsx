@@ -14,23 +14,43 @@ interface Slide {
   owner_username: string;
   created_at: string;
   updated_at: string;
+  views: number;
+  likes: number;
 }
 
 export default function PublicSlides() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [slides, setSlides] = useState<Slide[]>([]);
+  const [filteredSlides, setFilteredSlides] = useState<Slide[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [slidePreviews, setSlidePreviews] = useState<{ [key: number]: string }>({});
+  const [sortBy, setSortBy] = useState('created_at');
 
   // URLからページ番号を取得
   const currentPage = Number(searchParams.get('page')) || 1;
 
   useEffect(() => {
     fetchSlides();
-  }, [currentPage]);
+  }, [currentPage, sortBy]);
+
+  // 検索クエリが変更されたときにスライドをフィルタリング
+  useEffect(() => {
+    if (slides.length > 0) {
+      if (searchQuery.trim() === '') {
+        setFilteredSlides(slides);
+      } else {
+        const query = searchQuery.toLowerCase();
+        const filtered = slides.filter(slide =>
+          slide.title.toLowerCase().includes(query)
+        );
+        setFilteredSlides(filtered);
+      }
+    }
+  }, [searchQuery, slides]);
 
   // スライドコンテンツをページに分割する関数
   const splitContentIntoPages = (content: string) => {
@@ -56,7 +76,12 @@ export default function PublicSlides() {
   const fetchSlides = async () => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/public-slides?page=${currentPage}`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/public-slides?` +
+        new URLSearchParams({
+          page: currentPage.toString(),
+          sort_by: sortBy,
+          per_page: '18'
+        })
       );
 
       if (!response.ok) {
@@ -64,8 +89,9 @@ export default function PublicSlides() {
       }
 
       const data = await response.json();
-      setSlides(data[0]); // スライドのリスト
-      setTotalPages(data[1]); // 総ページ数
+      setSlides(data[0]);
+      setFilteredSlides(data[0]);
+      setTotalPages(data[1]);
 
       // 各スライドの最初のページをプレビューとして抽出
       const previews: { [key: number]: string } = {};
@@ -87,6 +113,15 @@ export default function PublicSlides() {
     router.push(`?${params.toString()}`);
   };
 
+  // ソート変更時にページを1に戻す
+  const handleSortChange = (newSortBy: string) => {
+    setSortBy(newSortBy);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', '1');
+    params.set('sort_by', newSortBy);
+    router.push(`?${params.toString()}`);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -100,7 +135,49 @@ export default function PublicSlides() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">公開スライド</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">公開スライド</h1>
+        <div className="flex items-center space-x-4">
+          {/* ソートボタン */}
+          <select
+            value={sortBy}
+            onChange={(e) => handleSortChange(e.target.value)}
+            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          >
+            <option value="created_at">新着順</option>
+            <option value="likes">いいね順</option>
+            <option value="views">閲覧数順</option>
+          </select>
+        </div>
+      </div>
+
+      {/* 検索ボックスを追加 */}
+      <div className="mb-6">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="スライドタイトルで検索..."
+            className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+            <svg
+              className="h-5 w-5 text-gray-400"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
 
       {error && (
         <div className="p-4 mb-6 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
@@ -129,10 +206,29 @@ export default function PublicSlides() {
             現在公開されているスライドはありません。
           </p>
         </div>
+      ) : filteredSlides.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+            />
+          </svg>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">検索結果がありません</h3>
+          <p className="mt-1 text-sm text-gray-500">検索条件を変更してみてください。</p>
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {slides.map((slide) => (
+            {filteredSlides.map((slide) => (
               <div
                 key={slide.id}
                 className="bg-white overflow-hidden shadow rounded-lg border border-gray-200"
@@ -156,55 +252,72 @@ export default function PublicSlides() {
                       </svg>
                     </div>
                     <div className="ml-5 w-0 flex-1">
-                      <h3 className="text-lg font-medium text-gray-900 truncate">{slide.title}</h3>
-                      <div className="mt-1 flex items-center">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          公開
-                        </span>
-                        <span className="ml-2 text-sm text-gray-500">
-                          {new Date(slide.updated_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500">
+                      <h3 className="text-lg font-medium text-gray-900 truncate">
+                        {slide.title}
+                      </h3>
+                      <div className="mt-1 text-sm text-gray-500">
                         作成者: {slide.owner_username}
                       </div>
                     </div>
                   </div>
-                  {/* スライドプレビュー表示エリア */}
-                  <div className="mt-4 border rounded-md p-2 overflow-hidden" style={{ height: '180px' }}>
-                    <div className="prose prose-sm max-w-none overflow-hidden flex items-center justify-center h-full">
-                      <div
-                        style={{
-                          transform: 'scale(0.4)',
-                          transformOrigin: 'center',
-                          width: '250%',
-                          height: '250%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        {slidePreviews[slide.id]?.trim().startsWith('<svg') ? (
-                          // SVGコンテンツの場合
-                          <div
-                            className="svg-container"
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
-                          />
-                        ) : (
-                          // 通常のHTMLコンテンツの場合
-                          <div dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }} />
-                        )}
+
+                  <Link href={`/slides/${slide.id}`}>
+                    <div
+                      className="mt-4 border rounded-md p-2 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+                      style={{ height: '180px' }}
+                    >
+                      <div className="prose prose-sm max-w-none overflow-hidden flex items-center justify-center h-full">
+                        <div
+                          style={{
+                            transform: 'scale(0.4)',
+                            transformOrigin: 'center',
+                            width: '250%',
+                            height: '250%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          {slidePreviews[slide.id]?.trim().startsWith('<svg') ? (
+                            <div
+                              className="svg-container"
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
+                            />
+                          ) : (
+                            <div dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }} />
+                          )}
+                        </div>
                       </div>
                     </div>
+                  </Link>
+
+                  <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex space-x-4">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                        </svg>
+                        <span>{slide.views}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                        </svg>
+                        <span>{slide.likes}</span>
+                      </div>
+                    </div>
+                    <span>{new Date(slide.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
+
                 <div className="bg-gray-50 px-5 py-3 flex justify-between">
                   <Link
                     href={`/slides/${slide.id}`}
