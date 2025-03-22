@@ -23,6 +23,7 @@ async def init_db():
 # CORSの許可オリジンを設定
 allowed_origins = [
     "http://localhost:3000",  # 開発環境用
+    f"http://{os.getenv('DEV_DOMAIN')}:3000",  # 開発環境用
     f"http://{os.getenv('YOUR_DOMAIN')}",  # 本番環境用（HTTP）
     f"https://{os.getenv('YOUR_DOMAIN')}"   # 本番環境用（HTTPS）
 ]

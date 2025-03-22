@@ -27,4 +27,4 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN npm run build
 
 # 本番環境で実行
-CMD ["npx", "next", "start"]
+CMD ["npx", "next", "start", "-H", "0.0.0.0"]
