@@ -14,6 +14,8 @@ services:
       - nginx-vhost:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
       - nginx-dhparam:/etc/nginx/dhparam
+    labels:
+      - com.github.nginx-proxy.nginx  # ✅ ラベル追加
     networks:
       - nginx-net
 
@@ -23,14 +25,15 @@ services:
     restart: always
     depends_on:
       - nginx-proxy
+    environment:
+      - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
+      - NGINX_PROXY_CONTAINER=nginx-proxy  # ✅ nginx-proxy を明示
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - nginx-certs:/etc/nginx/certs
       - nginx-vhost:/etc/nginx/vhost.d
       - nginx-html:/usr/share/nginx/html
       - nginx-acme:/etc/acme.sh
-    environment:
-      - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
     networks:
       - nginx-net
 
@@ -39,10 +42,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: https://${YOUR_DOMAIN}/api
+        NEXT_PUBLIC_API_URL: https://${YOUR_DOMAIN}
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://${YOUR_DOMAIN}/api
+      - NEXT_PUBLIC_API_URL=https://${YOUR_DOMAIN}
       - VIRTUAL_HOST=${YOUR_DOMAIN}
       - LETSENCRYPT_HOST=${YOUR_DOMAIN}
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}

@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import auth, slides
 from app.infrastructure.database.database import Base, engine
+import os
+from dotenv import load_dotenv
+
+# 環境変数の読み込み
+load_dotenv()
 
 app = FastAPI(
     title="Slide Management API",
@@ -15,9 +20,16 @@ async def init_db():
         # await conn.run_sync(Base.metadata.drop_all)  # ←データ消える！
         await conn.run_sync(Base.metadata.create_all)
 
+# CORSの許可オリジンを設定
+allowed_origins = [
+    "http://localhost:3000",  # 開発環境用
+    f"http://{os.getenv('YOUR_DOMAIN')}",  # 本番環境用（HTTP）
+    f"https://{os.getenv('YOUR_DOMAIN')}"   # 本番環境用（HTTPS）
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://output-shelf.com"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
