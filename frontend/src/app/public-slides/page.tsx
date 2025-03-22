@@ -221,44 +221,54 @@ export default function PublicSlides() {
                   <Link href={`/slides/${slide.id}`}>
                     <div
                       className="mt-4 border rounded-md p-2 overflow-hidden cursor-pointer hover:bg-gray-50 transition-colors duration-200"
-                      style={{ height: '180px' }}
+                      style={{
+                        height: '180px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: '#f9fafb',
+                        position: 'relative'
+                      }}
                     >
-                      <div className="prose prose-sm max-w-none overflow-hidden flex items-center justify-center h-full">
-                        <div
-                          style={{
-                            transform: 'scale(0.4)',
-                            transformOrigin: 'center',
-                            width: '250%',
-                            height: '250%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          {slidePreviews[slide.id]?.trim().startsWith('<svg') ? (
+                      {slidePreviews[slide.id]?.trim().startsWith('<svg') ? (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <div
+                            style={{
+                              transform: 'scale(0.4)',
+                              transformOrigin: 'center',
+                              pointerEvents: 'none'
+                            }}
+                          >
                             <div
                               className="svg-container"
                               style={{
-                                  width: '400px',
-                                  height: '400px',
-                                  overflow: 'hidden',
+                                width: '400px',
+                                height: '400px',
+                                overflow: 'hidden',
                               }}
                               dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
                             />
-                          ) : (
-                            <div
-                              className="html-container"
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                              dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
-                            />
-                          )}
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="text-center">
+                          <svg
+                            className="mx-auto h-12 w-12 text-gray-400"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          <p className="mt-2 text-sm text-gray-500">スライドをクリックして表示</p>
+                        </div>
+                      )}
                     </div>
                   </Link>
 

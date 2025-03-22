@@ -212,14 +212,17 @@ export default function SlideDetail() {
         {/* スライドコンテンツ */}
         <div className="flex-1 flex items-center justify-center overflow-auto p-4 bg-white">
           <div
-            className="max-w-full max-h-full w-full h-full flex items-center justify-center"
+            className="w-full h-full flex items-center justify-center"
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              margin: 'auto'
+            }}
           >
-            {/* インデックスを0ベースに調整 */}
             {(() => {
               const adjustedPageIndex = currentPage - 1;
               const currentContent = pages[adjustedPageIndex] || '';
               return currentContent.trim().startsWith('<svg') ? (
-                // SVGコンテンツの場合
                 <div
                   className="svg-container"
                   style={{
@@ -227,15 +230,22 @@ export default function SlideDetail() {
                     height: '100%',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    overflow: 'hidden'
                   }}
                   dangerouslySetInnerHTML={{ __html: currentContent }}
                 />
               ) : (
-                // 通常のHTMLコンテンツの場合
                 <div
                   className="html-container"
-                  style={{ maxWidth: '100%', maxHeight: '100%' }}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
                   dangerouslySetInnerHTML={{ __html: currentContent }}
                 />
               );
@@ -247,7 +257,10 @@ export default function SlideDetail() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div
+      className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-auto"
+      style={{ height: '100vh' }}
+    >
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">{slide?.title}</h1>
         <div className="flex space-x-4">
@@ -315,6 +328,14 @@ export default function SlideDetail() {
           <div className="px-4 py-5 sm:p-6">
             <div
               className="prose max-w-none"
+              style={{
+                height: 'auto',
+                maxHeight: 'none',
+                overflowY: 'visible',
+                padding: '1rem',
+                border: '1px solid #e5e7eb',
+                borderRadius: '0.375rem'
+              }}
               dangerouslySetInnerHTML={{ __html: pages[currentPage - 1] || '' }}
             />
           </div>
