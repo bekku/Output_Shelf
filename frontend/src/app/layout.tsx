@@ -7,8 +7,8 @@ import Navbar from './components/Navbar';
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Codebase Slide Share",
-  description: "HTMLやSVG形式で記載されたコードベースのスライド情報を管理するWebアプリ",
+  title: "Output Shelf",
+  description: "Output Shelfは、Claudeなどで生成されたHTMLやSVG形式で記載されたコードベースのスライド情報を管理するWebアプリです。",
 };
 
 export default function RootLayout({

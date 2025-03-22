@@ -141,3 +141,4 @@ async def increment_view(
     """スライドの閲覧数をインクリメントする"""
     await slide_use_cases.increment_view(slide_id)
     return {"message": "View count incremented"}
+

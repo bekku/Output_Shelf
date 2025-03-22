@@ -7,7 +7,6 @@ from app.infrastructure.database.database import Base
 
 
 class UserModel(Base):
-    """ユーザーのデータベースモデル"""
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -16,12 +15,11 @@ class UserModel(Base):
     hashed_password = Column(String, nullable=False)
 
     slides = relationship("SlideModel", back_populates="owner")
-    likes = relationship("LikeModel", back_populates="user")
-    liked_slides = relationship("SlideModel", secondary="likes", back_populates="liked_by_users")
+    likes = relationship("LikeModel", back_populates="user", overlaps="liked_slides")
+    liked_slides = relationship("SlideModel", secondary="likes", back_populates="liked_by_users", overlaps="likes")
 
 
 class SlideModel(Base):
-    """スライドのデータベースモデル"""
     __tablename__ = "slides"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -34,23 +32,14 @@ class SlideModel(Base):
     views = Column(Integer, default=0, nullable=False)
 
     owner = relationship("UserModel", back_populates="slides")
-    liked_by_users = relationship("UserModel", secondary="likes", back_populates="liked_slides")
-    like_details = relationship(
-        "LikeModel",
-        back_populates="slide",
-        cascade="all, delete-orphan"
-    )
+    liked_by_users = relationship("UserModel", secondary="likes", back_populates="liked_slides", overlaps="likes")
+    like_details = relationship("LikeModel", back_populates="slide", overlaps="liked_by_users,liked_slides")
 
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=None  # onupdateを削除
-    )
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class LikeModel(Base):
-    """ユーザーのいいねを管理するデータベースモデル"""
     __tablename__ = "likes"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -58,10 +47,9 @@ class LikeModel(Base):
     slide_id = Column(Integer, ForeignKey("slides.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # ユニーク制約: 同じユーザーが同じスライドに複数回いいねできないようにする
     __table_args__ = (
         UniqueConstraint('user_id', 'slide_id', name='unique_user_slide_like'),
     )
 
-    user = relationship("UserModel", back_populates="likes")
-    slide = relationship("SlideModel", back_populates="like_details")
+    user = relationship("UserModel", back_populates="likes", overlaps="liked_by_users,liked_slides")
+    slide = relationship("SlideModel", back_populates="like_details", overlaps="liked_by_users,liked_slides")

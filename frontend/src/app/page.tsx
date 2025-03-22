@@ -1,47 +1,71 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Slide } from './types';
 import Pagination from './components/Pagination';
-
-interface Slide {
-  id: number;
-  title: string;
-  content: string;
-  is_public: boolean;
-  owner_id: string;
-  owner_username: string;
-  created_at: string;
-  updated_at: string;
-  likes: number;
-  views: number;
-}
+import { splitContentIntoPages } from './utils/slide';
 
 export default function Home() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [slides, setSlides] = useState<Slide[]>([]);
   const [filteredSlides, setFilteredSlides] = useState<Slide[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [slidePreviews, setSlidePreviews] = useState<{ [key: number]: string }>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState('created_at');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isFetching, setIsFetching] = useState(false);
 
-  // URLからページ番号を取得
-  const currentPage = Number(searchParams.get('page')) || 1;
+  const fetchSlides = useCallback(async () => {
+    try {
+      setIsFetching(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/slides?page=${currentPage}&per_page=18&sort_by=${sortBy}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('スライドの取得に失敗しました');
+      }
+
+      const data = await response.json();
+      setSlides(data[0]);
+      setFilteredSlides(data[0]);
+      setTotalPages(Math.ceil(data[1] / 18));
+
+      // 各スライドの最初のページをプレビューとして抽出
+      const previews: { [key: number]: string } = {};
+      data[0].forEach((slide: Slide) => {
+        const pages = splitContentIntoPages(slide.content);
+        console.log(`Slide ${slide.id} content preview:`, {
+          isSVG: pages[0]?.trim().startsWith('<svg'),
+          previewLength: pages[0]?.length,
+          previewStart: pages[0]?.substring(0, 50)
+        });
+        previews[slide.id] = pages[0] || slide.content;
+      });
+      setSlidePreviews(previews);
+    } catch (error) {
+      console.error('Error fetching slides:', error);
+      setError(error instanceof Error ? error.message : 'スライドの取得に失敗しました');
+    } finally {
+      setIsFetching(false);
+    }
+  }, [currentPage, sortBy]);
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (isAuthenticated) {
       fetchSlides();
-    } else if (!isLoading && !isAuthenticated) {
-      setLoading(false);
     }
-  }, [isLoading, isAuthenticated, currentPage, sortBy]);
+  }, [isAuthenticated, currentPage, sortBy, fetchSlides]);
 
   // 検索クエリが変更されたときにスライドをフィルタリング
   useEffect(() => {
@@ -58,66 +82,6 @@ export default function Home() {
     }
   }, [searchQuery, slides]);
 
-  // スライドコンテンツをページに分割する関数
-  const splitContentIntoPages = (content: string) => {
-    // SVGコンテンツかどうかを確認
-    if (content.trim().startsWith('<svg')) {
-      // SVGコンテンツの場合は、そのまま1ページとして扱う
-      return content;
-    }
-
-    // ページ区切りとなる可能性のあるタグやクラスを探す
-    // 一般的なパターン: <div class="page">...</div> または <section>...</section>
-    const pagePattern = /<div[^>]*class="[^"]*page[^"]*"[^>]*>[\s\S]*?<\/div>|<section[^>]*>[\s\S]*?<\/section>/g;
-    const matches = content.match(pagePattern);
-
-    if (matches && matches.length > 0) {
-      return matches[0]; // 最初のページのみを返す
-    } else {
-      // ページ区切りが見つからない場合は、コンテンツ全体を1ページとして扱う
-      return content;
-    }
-  };
-
-  const fetchSlides = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/slides?` +
-        new URLSearchParams({
-          page: currentPage.toString(),
-          sort_by: sortBy,
-          per_page: '18'
-        }).toString(),
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('スライドの取得に失敗しました');
-      }
-
-      const data = await response.json();
-      setSlides(data[0]);
-      setFilteredSlides(data[0]);
-      setTotalPages(data[1]);
-
-      // 各スライドの最初のページをプレビューとして抽出
-      const previews: { [key: number]: string } = {};
-      data[0].forEach((slide: Slide) => {
-        previews[slide.id] = splitContentIntoPages(slide.content);
-      });
-      setSlidePreviews(previews);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleDeleteSlide = async (slideId: number) => {
     if (!confirm('このスライドを削除してもよろしいですか？')) {
       return;
@@ -125,7 +89,7 @@ export default function Home() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/api/slides/${slideId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/slides/${slideId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -144,28 +108,28 @@ export default function Home() {
       const newPreviews = { ...slidePreviews };
       delete newPreviews[slideId];
       setSlidePreviews(newPreviews);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (error) {
+      console.error('Error deleting slide:', error);
+      setError(error instanceof Error ? error.message : 'スライドの削除に失敗しました');
     }
-  };
-
-  const handlePageChange = (page: number) => {
-    // URLのクエリパラメータを更新
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', page.toString());
-    router.push(`?${params.toString()}`);
   };
 
   const handleSortChange = (newSortBy: string) => {
     setSortBy(newSortBy);
+    setCurrentPage(1);
     setSearchQuery('');
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', '1');
-    params.set('sort_by', newSortBy);
-    router.push(`?${params.toString()}`);
   };
 
-  if (isLoading || loading) {
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  if (isFetching) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-center">
@@ -181,10 +145,11 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center">
           <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl sm:tracking-tight lg:text-6xl">
-            Codebase Slide Share へようこそ
+            Output Shelf へようこそ
           </h1>
           <p className="mt-5 max-w-xl mx-auto text-xl text-gray-500">
-            HTMLやSVG形式で記載されたコードベースのスライド情報を管理するWebアプリです。
+            Output Shelfは、Claudeなどで生成されたHTMLやSVG形式で記載されたコードベースのスライド情報を管理するWebアプリです。
+            ⚠️ 現在はβ版です。
           </p>
           <div className="mt-8 flex justify-center">
             <div className="inline-flex rounded-md shadow">
@@ -238,7 +203,7 @@ export default function Home() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearch}
             placeholder="スライドタイトルで検索..."
             className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
           />
@@ -378,16 +343,23 @@ export default function Home() {
                             <div
                               className="svg-container"
                               style={{
+                                width: '400px',
+                                height: '400px',
+                                overflow: 'hidden',
+                              }}
+                              dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
+                            />
+                          ) : (
+                            <div
+                              className="html-container"
+                              style={{
                                 width: '100%',
                                 height: '100%',
-                                display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center'
                               }}
                               dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
                             />
-                          ) : (
-                            <div dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }} />
                           )}
                         </div>
                       </div>

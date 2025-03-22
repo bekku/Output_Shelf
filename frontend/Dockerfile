@@ -1,15 +1,35 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
+
+# build tools の追加
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    && npm install -g npm
 
 WORKDIR /app
+RUN mkdir -p /app/.next
+RUN mkdir -p /app/node_modules
 
 COPY package*.json ./
 
 RUN npm install
-RUN npm install react-icons
+RUN npm install react-icons @mui/material @emotion/react @emotion/styled @mui/icons-material
+RUN npm install --save-dev @types/node @types/react @types/react-dom @types/js-cookie
 
 COPY . .
 
-EXPOSE 3000
+# ビルド時の環境変数を引数として受け取る
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-# CMD ["npm", "run", "dev"]
-CMD ["npm", "run", "production"]
+# ビルド
+RUN npm run build
+
+# 実行時の環境変数
+# 実行時に--build-argで上書きできる
+ARG RUNTIME_API_URL
+ENV NEXT_PUBLIC_API_URL=${RUNTIME_API_URL:-$NEXT_PUBLIC_API_URL}
+
+# 本番環境で実行
+CMD ["npm", "start"]

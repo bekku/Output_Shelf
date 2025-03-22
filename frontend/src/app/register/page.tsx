@@ -46,8 +46,9 @@ export default function Register() {
 
       // 登録成功後、ログインページにリダイレクト
       router.push('/login');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (error) {
+      console.error('Error registering user:', error);
+      setError(error instanceof Error ? error.message : 'ユーザー登録に失敗しました');
     } finally {
       setIsLoading(false);
     }

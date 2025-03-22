@@ -1,69 +1,110 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Link from 'next/link';
-
-interface Slide {
-  id: number;
-  title: string;
-  content: string;
-  is_public: boolean;
-  owner_id: string;
-  owner_username: string;
-  created_at: string;
-  updated_at: string;
-  likes: number;
-  views: number;
-}
+import { Slide } from '@/app/types';
+import { splitContentIntoPages } from '@/app/utils/slide';
 
 export default function SlideDetail() {
+  const params = useParams();
+  const id = params.id as string;
+  const { user } = useAuth();
   const [slide, setSlide] = useState<Slide | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [currentPage, setCurrentPage] = useState(0);
   const [pages, setPages] = useState<string[]>([]);
   const [isSlideshow, setIsSlideshow] = useState(false);
-  const params = useParams();
-  const router = useRouter();
-  const { isAuthenticated, user } = useAuth();
-  const slideId = params.id;
   const [isLiked, setIsLiked] = useState(false);
 
+  const nextPage = useCallback(() => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  }, [currentPage, totalPages]);
+
+  const prevPage = useCallback(() => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  }, [currentPage]);
+
+  const fetchSlide = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/slides/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('スライドの取得に失敗しました');
+      }
+
+      const data = await response.json();
+      setSlide(data);
+      const pageContents = splitContentIntoPages(data.content);
+      console.log('Split content into pages:', {
+        totalPages: pageContents.length,
+        firstPage: pageContents[0]?.substring(0, 100)
+      });
+      setPages(pageContents);
+      setTotalPages(pageContents.length);
+
+      // 表示時にビューカウントをインクリメント
+      const incrementView = async () => {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/slides/${id}/view`, {
+            method: 'POST',
+          });
+        } catch (error) {
+          console.error('Failed to increment view count:', error);
+        }
+      };
+      incrementView();
+    } catch (error) {
+      console.error('Error fetching slide:', error);
+      setError(error instanceof Error ? error.message : 'スライドの取得に失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
-    if (slideId) {
+    if (id) {
       fetchSlide();
     }
-  }, [slideId]);
+  }, [id, fetchSlide]);
 
   // URLクエリパラメータを確認して、slideshow=trueの場合は自動的にスライドショーモードを開始
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get('slideshow') === 'true' && !loading && slide) {
+    if (searchParams.get('slideshow') === 'true' && !isLoading && slide) {
       setIsSlideshow(true);
     }
-  }, [loading, slide]);
+  }, [isLoading, slide]);
 
   // キーボードイベントのリスナーを追加
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isSlideshow) {
-        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'n') {
-          nextPage();
-        } else if (e.key === 'ArrowLeft' || e.key === 'p') {
-          prevPage();
-        } else if (e.key === 'Escape') {
-          setIsSlideshow(false);
-        }
+      if (e.key === 'ArrowRight') {
+        nextPage();
+      } else if (e.key === 'ArrowLeft') {
+        prevPage();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isSlideshow, currentPage, pages.length]);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [nextPage, prevPage]);
 
   // スライドショーを開始する
   const startSlideshow = () => {
@@ -75,99 +116,8 @@ export default function SlideDetail() {
     setIsSlideshow(false);
   };
 
-  // スライドコンテンツをページに分割する関数
-  const splitContentIntoPages = (content: string) => {
-    // ページ区切りとなる可能性のあるタグやクラスを探す
-    // 一般的なパターン: <div class="page">...</div> または <section>...</section>
-    const pagePattern = /<div[^>]*class="[^"]*page[^"]*"[^>]*>[\s\S]*?<\/div>|<section[^>]*>[\s\S]*?<\/section>/g;
-    const matches = content.match(pagePattern);
-
-    if (matches && matches.length > 0) {
-      return matches;
-    } else {
-      // SVGコンテンツかどうかを確認
-      if (content.trim().startsWith('<svg')) {
-        // SVGコンテンツの場合は、そのまま1ページとして扱う
-        return [content];
-      } else {
-        // ページ区切りが見つからない場合は、コンテンツ全体を1ページとして扱う
-        return [content];
-      }
-    }
-  };
-
-  const fetchSlide = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const headers: HeadersInit = {};
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`http://localhost:8000/api/slides/${slideId}`, {
-        headers,
-      });
-
-      if (response.status === 404) {
-        setError('スライドが見つかりません');
-        setLoading(false);
-        return;
-      }
-
-      if (response.status === 403) {
-        setError('このスライドを閲覧する権限がありません');
-        setLoading(false);
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('スライドの取得に失敗しました');
-      }
-
-      const data = await response.json();
-      setSlide(data);
-
-      // コンテンツをページに分割
-      const pageContents = splitContentIntoPages(data.content);
-      setPages(pageContents);
-      // 最初のページを表示
-      setCurrentPage(0);
-
-      // 表示時にビューカウントをインクリメント
-      const incrementView = async () => {
-        try {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/slides/${slideId}/view`, {
-            method: 'POST',
-          });
-        } catch (error) {
-          console.error('Failed to increment view count:', error);
-        }
-      };
-      incrementView();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 次のページに進む
-  const nextPage = () => {
-    if (currentPage < pages.length - 1) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
-
-  // 前のページに戻る
-  const prevPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
   const handleLike = async () => {
-    if (!isAuthenticated) {
+    if (!user) {
       alert('いいねするにはログインが必要です。');
       return;
     }
@@ -175,7 +125,7 @@ export default function SlideDetail() {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/slides/${slideId}/like`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/slides/${id}/like`,
         {
           method: 'POST',
           headers: {
@@ -199,7 +149,7 @@ export default function SlideDetail() {
     return slide && user && slide.owner_id === user.id;
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-center">
@@ -264,27 +214,32 @@ export default function SlideDetail() {
           <div
             className="max-w-full max-h-full w-full h-full flex items-center justify-center"
           >
-            {pages[currentPage]?.trim().startsWith('<svg') ? (
-              // SVGコンテンツの場合
-              <div
-                className="svg-container"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                dangerouslySetInnerHTML={{ __html: pages[currentPage] || '' }}
-              />
-            ) : (
-              // 通常のHTMLコンテンツの場合
-              <div
-                className="html-container"
-                style={{ maxWidth: '100%', maxHeight: '100%' }}
-                dangerouslySetInnerHTML={{ __html: pages[currentPage] || '' }}
-              />
-            )}
+            {/* インデックスを0ベースに調整 */}
+            {(() => {
+              const adjustedPageIndex = currentPage - 1;
+              const currentContent = pages[adjustedPageIndex] || '';
+              return currentContent.trim().startsWith('<svg') ? (
+                // SVGコンテンツの場合
+                <div
+                  className="svg-container"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  dangerouslySetInnerHTML={{ __html: currentContent }}
+                />
+              ) : (
+                // 通常のHTMLコンテンツの場合
+                <div
+                  className="html-container"
+                  style={{ maxWidth: '100%', maxHeight: '100%' }}
+                  dangerouslySetInnerHTML={{ __html: currentContent }}
+                />
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -360,7 +315,7 @@ export default function SlideDetail() {
           <div className="px-4 py-5 sm:p-6">
             <div
               className="prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: pages[currentPage] || '' }}
+              dangerouslySetInnerHTML={{ __html: pages[currentPage - 1] || '' }}
             />
           </div>
         </div>

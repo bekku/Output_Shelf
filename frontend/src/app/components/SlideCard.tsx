@@ -16,7 +16,7 @@ interface SlideCardProps {
   onDelete?: (id: number) => void;
 }
 
-export default function SlideCard({ id, title, content, isPublic, ownerUsername, likes, views, isOwner, onDelete }: SlideCardProps) {
+export default function SlideCard({ id, title, content, ownerUsername, likes, views, isOwner, onDelete }: SlideCardProps) {
   const [likeCount, setLikeCount] = useState(likes);
   const [hasLiked, setHasLiked] = useState(false);
 

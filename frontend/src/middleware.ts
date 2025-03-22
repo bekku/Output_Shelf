@@ -5,23 +5,24 @@ import type { NextRequest } from 'next/server';
 const publicPaths = ['/login', '/register', '/public-slides'];
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
-  const { pathname } = request.nextUrl;
+  // パス名を取得
+  const pathname = request.nextUrl.pathname;
 
   // 認証が不要なパスの場合はスキップ
-  if (publicPaths.includes(pathname) || pathname === '/') {
+  if (publicPaths.some(path => pathname.startsWith(path)) || pathname === '/') {
     return NextResponse.next();
   }
 
   // トークンがない場合はログインページにリダイレクト
+  const token = request.cookies.get('token')?.value;
   if (!token) {
-    const url = new URL('/login', request.url);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   return NextResponse.next();
 }
 
+// マッチャーを具体的なパスに変更
 export const config = {
   matcher: [
     /*

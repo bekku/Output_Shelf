@@ -1,41 +1,59 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
 import Pagination from '../components/Pagination';
-
-interface Slide {
-  id: number;
-  title: string;
-  content: string;
-  is_public: boolean;
-  owner_id: string;
-  owner_username: string;
-  created_at: string;
-  updated_at: string;
-  views: number;
-  likes: number;
-}
+import { Slide } from '../types';
+import { splitContentIntoPages } from '../utils/slide';
 
 export default function PublicSlides() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [slides, setSlides] = useState<Slide[]>([]);
   const [filteredSlides, setFilteredSlides] = useState<Slide[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [slidePreviews, setSlidePreviews] = useState<{ [key: number]: string }>({});
   const [sortBy, setSortBy] = useState('created_at');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // URLからページ番号を取得
-  const currentPage = Number(searchParams.get('page')) || 1;
+  const fetchSlides = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/public-slides?page=${currentPage}&per_page=18&sort_by=${sortBy}`
+      );
+
+      if (!response.ok) {
+        throw new Error('スライドの取得に失敗しました');
+      }
+
+      const data = await response.json();
+      setSlides(data[0]);
+      setFilteredSlides(data[0]);
+      setTotalPages(Math.ceil(data[1] / 18));
+
+      // 各スライドの最初のページをプレビューとして抽出
+      const previews: { [key: number]: string } = {};
+      data[0].forEach((slide: Slide) => {
+        const pages = splitContentIntoPages(slide.content);
+        console.log(`Slide ${slide.id} content preview:`, {
+          isSVG: pages[0]?.trim().startsWith('<svg'),
+          previewLength: pages[0]?.length,
+          previewStart: pages[0]?.substring(0, 50)
+        });
+        previews[slide.id] = pages[0] || slide.content;
+      });
+      setSlidePreviews(previews);
+    } catch (error) {
+      console.error('Error fetching slides:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, sortBy]);
 
   useEffect(() => {
     fetchSlides();
-  }, [currentPage, sortBy]);
+  }, [fetchSlides]);
 
   // 検索クエリが変更されたときにスライドをフィルタリング
   useEffect(() => {
@@ -52,77 +70,22 @@ export default function PublicSlides() {
     }
   }, [searchQuery, slides]);
 
-  // スライドコンテンツをページに分割する関数
-  const splitContentIntoPages = (content: string) => {
-    // SVGコンテンツかどうかを確認
-    if (content.trim().startsWith('<svg')) {
-      // SVGコンテンツの場合は、そのまま1ページとして扱う
-      return content;
-    }
-
-    // ページ区切りとなる可能性のあるタグやクラスを探す
-    // 一般的なパターン: <div class="page">...</div> または <section>...</section>
-    const pagePattern = /<div[^>]*class="[^"]*page[^"]*"[^>]*>[\s\S]*?<\/div>|<section[^>]*>[\s\S]*?<\/section>/g;
-    const matches = content.match(pagePattern);
-
-    if (matches && matches.length > 0) {
-      return matches[0]; // 最初のページのみを返す
-    } else {
-      // ページ区切りが見つからない場合は、コンテンツ全体を1ページとして扱う
-      return content;
-    }
+  const handleSortChange = (newSortBy: string) => {
+    setSortBy(newSortBy);
+    setCurrentPage(1);
+    setSearchQuery('');
   };
 
-  const fetchSlides = async () => {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/public-slides?` +
-        new URLSearchParams({
-          page: currentPage.toString(),
-          sort_by: sortBy,
-          per_page: '18'
-        })
-      );
-
-      if (!response.ok) {
-        throw new Error('スライドの取得に失敗しました');
-      }
-
-      const data = await response.json();
-      setSlides(data[0]);
-      setFilteredSlides(data[0]);
-      setTotalPages(data[1]);
-
-      // 各スライドの最初のページをプレビューとして抽出
-      const previews: { [key: number]: string } = {};
-      data[0].forEach((slide: Slide) => {
-        previews[slide.id] = splitContentIntoPages(slide.content);
-      });
-      setSlidePreviews(previews);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1);
   };
 
   const handlePageChange = (page: number) => {
-    // URLのクエリパラメータを更新
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', page.toString());
-    router.push(`?${params.toString()}`);
+    setCurrentPage(page);
   };
 
-  // ソート変更時にページを1に戻す
-  const handleSortChange = (newSortBy: string) => {
-    setSortBy(newSortBy);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', '1');
-    params.set('sort_by', newSortBy);
-    router.push(`?${params.toString()}`);
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-center">
@@ -157,7 +120,7 @@ export default function PublicSlides() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearch}
             placeholder="スライドタイトルで検索..."
             className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
           />
@@ -178,12 +141,6 @@ export default function PublicSlides() {
           </div>
         </div>
       </div>
-
-      {error && (
-        <div className="p-4 mb-6 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
-          {error}
-        </div>
-      )}
 
       {slides.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -282,16 +239,23 @@ export default function PublicSlides() {
                             <div
                               className="svg-container"
                               style={{
+                                  width: '400px',
+                                  height: '400px',
+                                  overflow: 'hidden',
+                              }}
+                              dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
+                            />
+                          ) : (
+                            <div
+                              className="html-container"
+                              style={{
                                 width: '100%',
                                 height: '100%',
-                                display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center'
                               }}
                               dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }}
                             />
-                          ) : (
-                            <div dangerouslySetInnerHTML={{ __html: slidePreviews[slide.id] || '' }} />
                           )}
                         </div>
                       </div>

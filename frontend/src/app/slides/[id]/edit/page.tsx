@@ -1,48 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import Link from 'next/link';
 
-interface Slide {
-  id: number;
-  title: string;
-  content: string;
-  is_public: boolean;
-  owner_id: string;
-  owner_username: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export default function EditSlide() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [isPublic, setIsPublic] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
   const [error, setError] = useState('');
-  const [preview, setPreview] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const params = useParams();
-  const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const slideId = params.id;
 
-  useEffect(() => {
-    if (slideId && isAuthenticated) {
-      fetchSlide();
-    }
-  }, [slideId, isAuthenticated]);
-
-  const fetchSlide = async () => {
+  const fetchSlide = useCallback(async () => {
     try {
+      setFetchLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/api/slides/${slideId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/slides/${slideId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (response.status === 404) {
         setError('スライドが見つかりません');
@@ -60,47 +48,78 @@ export default function EditSlide() {
         throw new Error('スライドの取得に失敗しました');
       }
 
-      const data: Slide = await response.json();
+      const data = await response.json();
 
-      setTitle(data.title);
-      setContent(data.content);
-      setIsPublic(data.is_public);
-    } catch (err: any) {
-      setError(err.message);
+      // スライドの所有者かどうかを確認
+      if (user && data.owner_id !== user.id) {
+        console.error('Permission denied: User is not the owner of this slide');
+        setError('このスライドを編集する権限がありません');
+        setIsOwner(false);
+      } else {
+        setIsOwner(true);
+        setTitle(data.title);
+        setContent(data.content);
+        setIsPublic(data.is_public);
+      }
+    } catch (error) {
+      console.error('Error fetching slide:', error);
+      setError(error instanceof Error ? error.message : 'スライドの取得に失敗しました');
     } finally {
       setFetchLoading(false);
     }
-  };
+  }, [slideId, user]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (slideId && isAuthenticated) {
+      fetchSlide();
+    }
+  }, [slideId, isAuthenticated, fetchSlide]);
+
+  // ユーザーが認証されていない、またはスライドの所有者でない場合はリダイレクト
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    } else if (!authLoading && !fetchLoading && !isOwner && error) {
+      // エラーメッセージを表示した後、3秒後にホームページにリダイレクト
+      const timer = setTimeout(() => {
+        router.push('/');
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [authLoading, isAuthenticated, fetchLoading, isOwner, error, router]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/api/slides/${slideId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title,
-          content,
-          is_public: isPublic,
-        }),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/slides/${slideId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title,
+            content,
+            is_public: isPublic,
+          }),
+        }
+      );
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || 'スライドの更新に失敗しました');
+        throw new Error('スライドの更新に失敗しました');
       }
 
-      // 更新成功後、スライド詳細ページにリダイレクト
-      router.push(`/slides/${slideId}`);
-    } catch (err: any) {
-      setError(err.message);
+      router.push('/');
+    } catch (error) {
+      console.error('Error updating slide:', error);
+      setError(error instanceof Error ? error.message : 'スライドの更新に失敗しました');
     } finally {
       setIsLoading(false);
     }
@@ -122,7 +141,23 @@ export default function EditSlide() {
     return null;
   }
 
-  if (error) {
+  if (!isOwner && !fetchLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">エラー: </strong>
+          <span className="block sm:inline">このスライドを編集する権限がありません。ホームページに戻ります。</span>
+        </div>
+        <div className="mt-4">
+          <Link href="/" className="text-indigo-600 hover:text-indigo-500">
+            ホームに戻る
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && isOwner) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">

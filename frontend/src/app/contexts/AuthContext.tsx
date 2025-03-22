@@ -6,16 +6,16 @@ import Cookies from 'js-cookie';
 
 interface User {
   id: number;
-  username: string;
   email: string;
+  username: string;
 }
 
 interface AuthContextType {
-  isAuthenticated: boolean;
-  isLoading: boolean;
   user: User | null;
+  isLoading: boolean;
   login: (token: string) => Promise<void>;
   logout: () => void;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const response = await fetch('http://localhost:8000/api/auth/me', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     Cookies.set('token', token, { path: '/' });
 
     try {
-      const response = await fetch('http://localhost:8000/api/auth/me', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

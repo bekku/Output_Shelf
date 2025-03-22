@@ -50,3 +50,5 @@ frontend/node_modules
 frontend/.next
 frontend/out
 frontend/build
+
+test_slide_share.pem

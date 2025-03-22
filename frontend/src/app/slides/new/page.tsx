@@ -21,7 +21,7 @@ export default function NewSlide() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/slides', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/slides`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,8 +41,9 @@ export default function NewSlide() {
 
       // 作成成功後、ホームページにリダイレクト
       router.push('/');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (error) {
+      console.error('Error creating slide:', error);
+      setError(error instanceof Error ? error.message : 'スライドの作成に失敗しました');
     } finally {
       setIsLoading(false);
     }

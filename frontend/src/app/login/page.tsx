@@ -19,7 +19,7 @@ export default function Login() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8000/api/auth/token', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -41,8 +41,9 @@ export default function Login() {
 
       // ホームページにリダイレクト
       router.push('/');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (error) {
+      console.error('Error logging in:', error);
+      setError(error instanceof Error ? error.message : 'ログインに失敗しました');
     } finally {
       setIsLoading(false);
     }
