@@ -1,36 +1,76 @@
 version: '3.8'
 
 services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:alpine
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs:ro
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+      - nginx-dhparam:/etc/nginx/dhparam
+    networks:
+      - nginx-net
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: acme-companion
+    restart: always
+    depends_on:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+      - nginx-acme:/etc/acme.sh
+    environment:
+      - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
+    networks:
+      - nginx-net
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    volumes:
-      - /app/node_modules
+      args:
+        NEXT_PUBLIC_API_URL: https://${YOUR_DOMAIN}/api
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://${YOUR_DOMAIN}/api
+      - VIRTUAL_HOST=${YOUR_DOMAIN}
+      - LETSENCRYPT_HOST=${YOUR_DOMAIN}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+    expose:
+      - "3000"
     depends_on:
       - backend
-    environment:
-      # - NODE_ENV=development
-      - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    networks:
+      - nginx-net
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - ./backend/.env:/app/.env
-    env_file:
-      - ./backend/.env
+    expose:
+      - "8000"
     environment:
-      - ENVIRONMENT=development
+      - ENVIRONMENT=production
+      - VIRTUAL_HOST=${YOUR_DOMAIN}
+      - VIRTUAL_PATH=/api
+      - LETSENCRYPT_HOST=${YOUR_DOMAIN}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+    env_file:
+      - ./.env
     depends_on:
       - db
+    networks:
+      - nginx-net
 
   db:
     image: postgres:15
@@ -42,6 +82,17 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=slidedb
+    networks:
+      - nginx-net
 
 volumes:
   postgres_data:
+  nginx-certs:
+  nginx-vhost:
+  nginx-html:
+  nginx-dhparam:
+  nginx-acme:
+
+networks:
+  nginx-net:
+    driver: bridge

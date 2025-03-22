@@ -52,13 +52,27 @@ cd <repository-directory>
 
 2. 環境変数の設定
 
+プロジェクトルートに`.env`ファイルを作成し、以下の環境変数を設定します：
+
 ```bash
-# backend/.env
-DATABASE_URL=postgresql://postgres:postgres@db:5432/slides
-SECRET_KEY=your-secret-key
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+# バックエンドAPI設定
+SECRET_KEY=your-secret-key                # JWT署名用の秘密鍵
+REFRESH_TOKEN_SECRET_KEY=your-secret-key  # リフレッシュトークン用の秘密鍵
+ALGORITHM=???                         # JWT暗号化アルゴリズム
+ACCESS_TOKEN_EXPIRE_MINUTES=N            # アクセストークンの有効期限（分）
+
+# データベース設定
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/slidedb
+
+# 本番環境設定（必要な場合）
+YOUR_DOMAIN=your-domain.com               # デプロイ先のドメイン
+LETSENCRYPT_EMAIL=your-email@example.com  # Let's Encrypt用のメールアドレス
 ```
+
+注意：
+- 本番環境では、`SECRET_KEY`と`REFRESH_TOKEN_SECRET_KEY`は必ず変更してください
+- `.env`ファイルはGitにコミットしないでください（`.gitignore`に追加済み）
+- 開発環境では`YOUR_DOMAIN`と`LETSENCRYPT_EMAIL`は設定不要です
 
 3. Docker Composeでアプリケーションを起動
 

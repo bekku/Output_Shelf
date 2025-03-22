@@ -9,19 +9,15 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# 起動時にデータベーステーブルを作成
 @app.on_event("startup")
 async def init_db():
-    # テストとデバッグ目的のみ - 本番環境ではAlembicを使用すべき
     async with engine.begin() as conn:
-        # テーブルの作成（開発環境のみ）
         # await conn.run_sync(Base.metadata.drop_all)  # ←データ消える！
         await conn.run_sync(Base.metadata.create_all)
 
-# CORS設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "https://output-shelf.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

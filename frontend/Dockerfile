@@ -20,16 +20,11 @@ RUN npm install --save-dev @types/node @types/react @types/react-dom @types/js-c
 COPY . .
 
 # ビルド時の環境変数を引数として受け取る
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 # ビルド
 RUN npm run build
 
-# 実行時の環境変数
-# 実行時に--build-argで上書きできる
-ARG RUNTIME_API_URL
-ENV NEXT_PUBLIC_API_URL=${RUNTIME_API_URL:-$NEXT_PUBLIC_API_URL}
-
 # 本番環境で実行
-CMD ["npm", "start"]
+CMD ["npx", "next", "start"]
